@@ -6,6 +6,7 @@ use logic::{initialize_game, Board, Move};
 fn main() {
     initialize_game();
     let board = Board::new();
-    print_board(&board);
-    println!("{:#?}", board.move_data);
+    // print_board(&board);
+    // println!("{:#?}", board.move_data);
+    board.generate_moves();
 }
