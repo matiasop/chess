@@ -1,3 +1,4 @@
+use core::panic;
 use std::cmp::min;
 use std::collections::HashMap;
 
@@ -34,6 +35,7 @@ pub enum PieceType {
     King,
 }
 
+#[derive(Debug)]
 pub struct Move {
     start_square: isize,
     target_square: isize,
@@ -69,7 +71,7 @@ impl Board {
         let mut board = Board {
             squares,
             move_data,
-            color_to_move: false,
+            color_to_move: true,
         };
         board.precompute_move_data();
 
@@ -113,12 +115,13 @@ impl Board {
                 None => continue,
                 Some(piece_type) => {
                     if piece.color.unwrap() == self.color_to_move {
-                        match piece_type {
+                        let mut new_moves = match piece_type {
                             PieceType::Rook | PieceType::Bishop | PieceType::Queen => {
                                 self.generate_sliding_moves(square as isize, piece_type)
                             }
-                            _ => println!("to do"),
-                        }
+                            _ => Vec::new(),
+                        };
+                        moves.append(&mut new_moves);
                     }
                 }
             }
@@ -126,37 +129,53 @@ impl Board {
         moves
     }
 
-    pub fn generate_sliding_moves(&self, square: isize, piece_type: PieceType) {
+    pub fn generate_sliding_moves(&self, square: isize, piece_type: PieceType) -> Vec<Move> {
+        let mut moves = Vec::new();
+        let idxs = match piece_type {
+            PieceType::Rook => 0..4,
+            PieceType::Bishop => 4..8,
+            PieceType::Queen => 0..8,
+            _ => panic!(),
+        };
+
+        for direction_index in idxs {
+            moves.append(&mut self.sliding_moves(square, direction_index));
+        }
+        println!("{:?} {:?} {:?}", piece_type, square, moves);
+        moves
+    }
+
+    fn sliding_moves(&self, square: isize, direction_index: usize) -> Vec<Move> {
         let mut moves = Vec::new();
         // north, south, east, west, north_east, north_west, south_east, south_west
         let directions_offset = [8, -8, 1, -1, 9, 7, -7, -9];
-        for direction_index in 0..8 {
-            for n in 0..self.move_data.get(&square).unwrap()[direction_index] {
-                let targetSquare = square + directions_offset[direction_index] * (n + 1);
-                let piece_on_target_square = self.squares[targetSquare as usize];
 
-                match piece_on_target_square.color {
-                    None => {}
-                    Some(c) => {
-                        if c == self.color_to_move {
-                            // Blocked by friendly piece
-                            break;
-                        } else {
-                            // Blocked by enemy piece
-                            moves.push(Move {
-                                start_square: square,
-                                target_square: targetSquare,
-                            });
-                            break;
-                        }
+        for n in 0..self.move_data.get(&square).unwrap()[direction_index] {
+            let target_square = square + directions_offset[direction_index] * (n + 1);
+            let piece_on_target_square = self.squares[target_square as usize];
+
+            match piece_on_target_square.color {
+                None => {}
+                Some(c) => {
+                    if c == self.color_to_move {
+                        // Blocked by friendly piece
+                        break;
+                    } else {
+                        // Blocked by enemy piece
+                        moves.push(Move {
+                            start_square: square,
+                            target_square,
+                        });
+                        break;
                     }
                 }
-                moves.push(Move {
-                    start_square: square,
-                    target_square: targetSquare,
-                });
             }
+            moves.push(Move {
+                start_square: square,
+                target_square,
+            });
         }
+        moves
     }
 }
 
