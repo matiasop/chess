@@ -1,37 +1,36 @@
-use crate::structs::{Move, PieceType, Square};
+use crate::structs::{Move, PieceType, Tile};
 use core::panic;
 use std::cmp::min;
 use std::collections::HashMap;
 
 pub struct Board {
-    pub squares: [Square; 64],
+    pub tiles: [Tile; 64],
     pub move_data: HashMap<isize, [isize; 8]>, // north, south, east, west, north_east, north_west, south_east, south_west
     pub color_to_move: bool,
 }
 
 impl Board {
     pub fn new() -> Board {
-        let mut squares = [Square::empty(); 64];
+        let mut tiles = [Tile::empty(); 64];
 
-        // Fill squares with pieces and empty spaces
-        squares[0] = Square::new(PieceType::Rook, true);
+        // Fill tiles with pieces and empty spaces
         for i in 0..64 {
             let color = i < 32;
-            let square = match i {
-                0 | 7 | 56 | 63 => Square::new(PieceType::Rook, color),
-                1 | 6 | 57 | 62 => Square::new(PieceType::Knight, color),
-                2 | 5 | 58 | 61 => Square::new(PieceType::Bishop, color),
-                3 | 59 => Square::new(PieceType::Queen, color),
-                4 | 60 => Square::new(PieceType::King, color),
-                8..=15 | 48..=55 => Square::new(PieceType::Pawn, color),
-                _ => Square::empty(),
+            let tile = match i {
+                0 | 7 | 56 | 63 => Tile::new(PieceType::Rook, color),
+                1 | 6 | 57 | 62 => Tile::new(PieceType::Knight, color),
+                2 | 5 | 58 | 61 => Tile::new(PieceType::Bishop, color),
+                3 | 59 => Tile::new(PieceType::Queen, color),
+                4 | 60 => Tile::new(PieceType::King, color),
+                8..=15 | 48..=55 => Tile::new(PieceType::Pawn, color),
+                _ => Tile::empty(),
             };
-            squares[i] = square;
+            tiles[i] = tile;
         }
 
         let move_data: HashMap<isize, [isize; 8]> = HashMap::new();
         let mut board = Board {
-            squares,
+            tiles,
             move_data,
             color_to_move: true,
         };
@@ -55,10 +54,10 @@ impl Board {
                 let south_east = min(south, east);
                 let south_west = min(south, west);
 
-                let square_index = col + 8 * row;
+                let tile_index = col + 8 * row;
 
                 self.move_data.insert(
-                    square_index,
+                    tile_index,
                     [
                         north, south, east, west, north_east, north_west, south_east, south_west,
                     ],
@@ -71,15 +70,15 @@ impl Board {
         // returns a vector with all the valid moves
         let mut moves = Vec::new();
 
-        for square in 0..64 {
-            let piece = self.squares[square];
-            match piece.piece {
+        for t in 0..64 {
+            let tile = self.tiles[t];
+            match tile.piece {
                 None => continue,
-                Some(piece_type) => {
-                    if piece.color.unwrap() == self.color_to_move {
-                        let mut new_moves = match piece_type {
+                Some(piece) => {
+                    if piece.color == self.color_to_move {
+                        let mut new_moves = match piece.piece_type {
                             PieceType::Rook | PieceType::Bishop | PieceType::Queen => {
-                                self.generate_sliding_moves(square as isize, piece_type)
+                                self.generate_sliding_moves(t as isize, piece.piece_type)
                             }
                             _ => Vec::new(),
                         };
@@ -91,7 +90,7 @@ impl Board {
         moves
     }
 
-    pub fn generate_sliding_moves(&self, square: isize, piece_type: PieceType) -> Vec<Move> {
+    pub fn generate_sliding_moves(&self, tile_idx: isize, piece_type: PieceType) -> Vec<Move> {
         let mut moves = Vec::new();
         let idxs = match piece_type {
             PieceType::Rook => 0..4,
@@ -101,46 +100,43 @@ impl Board {
         };
 
         for direction_index in idxs {
-            moves.append(&mut self.sliding_moves(square, direction_index));
+            moves.append(&mut self.sliding_moves(tile_idx, direction_index));
         }
+        // println!("{} {:?} {:?}", tile_idx, piece_type, moves);
         moves
     }
 
-    fn sliding_moves(&self, square: isize, direction_index: usize) -> Vec<Move> {
+    fn sliding_moves(&self, tile_idx: isize, direction_index: usize) -> Vec<Move> {
         let mut moves = Vec::new();
         // north, south, east, west, north_east, north_west, south_east, south_west
         let directions_offset = [8, -8, 1, -1, 9, 7, -7, -9];
 
-        for n in 0..self.move_data.get(&square).unwrap()[direction_index] {
-            let target_square = square + directions_offset[direction_index] * (n + 1);
-            let piece_on_target_square = self.squares[target_square as usize];
+        for n in 0..self.move_data.get(&tile_idx).unwrap()[direction_index] {
+            let target_tile = tile_idx + directions_offset[direction_index] * (n + 1);
+            let piece_on_target_tile = self.tiles[target_tile as usize];
 
-            match piece_on_target_square.color {
+            match piece_on_target_tile.piece {
                 None => {}
-                Some(c) => {
-                    if c == self.color_to_move {
+                Some(piece) => {
+                    if piece.color == self.color_to_move {
                         // Blocked by friendly piece
                         break;
                     } else {
                         // Blocked by enemy piece
                         moves.push(Move {
-                            start_square: square,
-                            target_square,
+                            start_tile: tile_idx,
+                            target_tile,
                         });
                         break;
                     }
                 }
             }
             moves.push(Move {
-                start_square: square,
-                target_square,
+                start_tile: tile_idx,
+                target_tile,
             });
         }
+
         moves
     }
-}
-
-pub fn initialize_game() {
-    println!("initialize game");
-    let board = Board::new();
 }
