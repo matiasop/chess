@@ -1,6 +1,6 @@
+use core::panic;
 use std::cmp::min;
 use std::collections::HashMap;
-use std::hash::Hash;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Square {
@@ -36,51 +36,14 @@ pub enum PieceType {
 }
 
 #[derive(Debug)]
-pub struct MovesToEdge {
-    north: usize,
-    south: usize,
-    east: usize,
-    west: usize,
-    north_east: usize,
-    north_west: usize,
-    south_east: usize,
-    south_west: usize,
-}
-
-// pub enum Move {
-//     north,
-//     south,
-//     east,
-//     west,
-//     north_east,
-//     north_west,
-//     south_east,
-//     south_west,
-// }
-
-// impl Move {
-//     pub fn value(&self) -> isize {
-//         match *self {
-//             Move::north => 8,
-//             Move::south => -8,
-//             Move::east => 1,
-//             Move::west => -1,
-//             Move::north_east => 9,
-//             Move::north_west => 7,
-//             Move::south_east => -7,
-//             Move::south_west => -9,
-//         }
-//     }
-// }
-
-struct Move {
-    start_square: usize,
-    target_square: usize,
+pub struct Move {
+    start_square: isize,
+    target_square: isize,
 }
 
 pub struct Board {
     pub squares: [Square; 64],
-    pub move_data: HashMap<usize, MovesToEdge>,
+    pub move_data: HashMap<isize, [isize; 8]>, // north, south, east, west, north_east, north_west, south_east, south_west
     pub color_to_move: bool,
 }
 
@@ -104,11 +67,11 @@ impl Board {
             squares[i] = square;
         }
 
-        let move_data: HashMap<usize, MovesToEdge> = HashMap::new();
+        let move_data: HashMap<isize, [isize; 8]> = HashMap::new();
         let mut board = Board {
             squares,
             move_data,
-            color_to_move: false,
+            color_to_move: true,
         };
         board.precompute_move_data();
 
@@ -134,16 +97,9 @@ impl Board {
 
                 self.move_data.insert(
                     square_index,
-                    MovesToEdge {
-                        north,
-                        south,
-                        east,
-                        west,
-                        north_east,
-                        north_west,
-                        south_east,
-                        south_west,
-                    },
+                    [
+                        north, south, east, west, north_east, north_west, south_east, south_west,
+                    ],
                 );
             }
         }
@@ -159,12 +115,13 @@ impl Board {
                 None => continue,
                 Some(piece_type) => {
                     if piece.color.unwrap() == self.color_to_move {
-                        match piece_type {
+                        let mut new_moves = match piece_type {
                             PieceType::Rook | PieceType::Bishop | PieceType::Queen => {
-                                generate_sliding_moves(square, piece_type)
+                                self.generate_sliding_moves(square as isize, piece_type)
                             }
-                            _ => println!("to do"),
-                        }
+                            _ => Vec::new(),
+                        };
+                        moves.append(&mut new_moves);
                     }
                 }
             }
@@ -172,10 +129,53 @@ impl Board {
         moves
     }
 
-    pub fn generate_sliding_moves(&self, square: usize, piece_type: PieceType) {
-        for dir in 0..8 {
-            for n in self.move_data.get(&square) {}
+    pub fn generate_sliding_moves(&self, square: isize, piece_type: PieceType) -> Vec<Move> {
+        let mut moves = Vec::new();
+        let idxs = match piece_type {
+            PieceType::Rook => 0..4,
+            PieceType::Bishop => 4..8,
+            PieceType::Queen => 0..8,
+            _ => panic!(),
+        };
+
+        for direction_index in idxs {
+            moves.append(&mut self.sliding_moves(square, direction_index));
         }
+        println!("{:?} {:?} {:?}", piece_type, square, moves);
+        moves
+    }
+
+    fn sliding_moves(&self, square: isize, direction_index: usize) -> Vec<Move> {
+        let mut moves = Vec::new();
+        // north, south, east, west, north_east, north_west, south_east, south_west
+        let directions_offset = [8, -8, 1, -1, 9, 7, -7, -9];
+
+        for n in 0..self.move_data.get(&square).unwrap()[direction_index] {
+            let target_square = square + directions_offset[direction_index] * (n + 1);
+            let piece_on_target_square = self.squares[target_square as usize];
+
+            match piece_on_target_square.color {
+                None => {}
+                Some(c) => {
+                    if c == self.color_to_move {
+                        // Blocked by friendly piece
+                        break;
+                    } else {
+                        // Blocked by enemy piece
+                        moves.push(Move {
+                            start_square: square,
+                            target_square,
+                        });
+                        break;
+                    }
+                }
+            }
+            moves.push(Move {
+                start_square: square,
+                target_square,
+            });
+        }
+        moves
     }
 }
 
