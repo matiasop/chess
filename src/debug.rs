@@ -1,4 +1,5 @@
-use crate::logic::{Board, PieceType, Square};
+use crate::logic::Board;
+use crate::structs::{PieceType, Square};
 
 pub fn print_board(board: &Board) {
     for (i, square) in board.squares.iter().enumerate() {
