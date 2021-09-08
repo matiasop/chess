@@ -1,45 +1,7 @@
+use crate::structs::{Move, PieceType, Square};
 use core::panic;
 use std::cmp::min;
 use std::collections::HashMap;
-
-#[derive(Clone, Copy, Debug)]
-pub struct Square {
-    pub piece: Option<PieceType>,
-    pub color: Option<bool>, // 0 is white, 1 is black
-}
-
-impl Square {
-    fn empty() -> Square {
-        // returns empty square
-        Square {
-            piece: None,
-            color: None,
-        }
-    }
-
-    fn new(piece_type: PieceType, color: bool) -> Square {
-        Square {
-            piece: Some(piece_type),
-            color: Some(color),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum PieceType {
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King,
-}
-
-#[derive(Debug)]
-pub struct Move {
-    start_square: isize,
-    target_square: isize,
-}
 
 pub struct Board {
     pub squares: [Square; 64],
@@ -141,7 +103,6 @@ impl Board {
         for direction_index in idxs {
             moves.append(&mut self.sliding_moves(square, direction_index));
         }
-        println!("{:?} {:?} {:?}", piece_type, square, moves);
         moves
     }
 
